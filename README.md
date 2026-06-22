@@ -1,94 +1,241 @@
-# МСЧ аэропорта Иркутск
+# МСЧ Аэропорт Иркутск
 
-React/Vite frontend, Express API backend и PostgreSQL база данных.
+Веб-приложение для автоматизации работы Медико-санитарной части аэропорта Иркутск.
 
-## Структура
+## Технологии
 
-```text
-./
-  msch/                 frontend React/Vite
-  msch-backend/         backend Express API
-  schema.sql            схема БД
-  seed.sql              демо-данные (только для разработки)
-  docker-compose.yml    запуск всего проекта
-  Dockerfile.frontend   сборка frontend
-  nginx.conf            frontend + proxy /api
-  .env.example          шаблон переменных окружения
+* Node.js 20
+* Express
+* PostgreSQL 16
+* Docker
+* Docker Compose
+* JWT
+* HTML/CSS/JavaScript
+
+## Структура проекта
+
+```
+msch-airport-irkutsk
+│
+├── msch-backend
+│   ├── src
+│   │   ├── db
+│   │   ├── middleware
+│   │   ├── routes
+│   │   └── index.js
+│   ├── Dockerfile
+│   ├── package.json
+│   └── package-lock.json
+│
+├── frontend
+├── schema.sql
+├── seed.sql
+├── docker-compose.yml
+└── .env
 ```
 
-## Подготовка
+---
 
-1. Скопируй `.env.example` в `.env` и задай свои значения `DB_PASSWORD`, `JWT_SECRET`, `JWT_REFRESH_SECRET`.
-2. Файл `.env` не должен попадать в git (уже в `.gitignore`).
+# Локальное развертывание
 
-## Запуск через Docker
+## Подготовка окружения
 
-1. Запусти Docker Desktop.
-2. Открой терминал в папке проекта:
+Установить:
+
+* Node.js 20.x или выше;
+* Docker Desktop;
+* Git.
+
+Клонировать репозиторий:
 
 ```bash
-docker compose up --build
+git clone <repository_url>
+cd msch-airport-irkutsk
 ```
 
-3. Открой приложение:
+## Настройка проекта
 
-```text
+Создать файл `.env` в корне проекта:
+
+```env
+DB_HOST=db
+DB_PORT=5432
+
+DB_NAME=msch
+DB_USER=msch
+DB_PASSWORD=msch
+
+JWT_SECRET=your_secret_key
+
+PORT=3001
+```
+
+## Запуск проекта
+
+Выполнить команду:
+
+```bash
+docker compose up -d --build
+```
+
+Проверить состояние контейнеров:
+
+```bash
+docker ps
+```
+
+После запуска будут созданы контейнеры:
+
+* db — PostgreSQL 16;
+* backend — Node.js + Express;
+* frontend — клиентское приложение.
+
+## Доступ к приложению
+
+Frontend:
+
+```
 http://localhost:8080
 ```
 
-API доступен через:
+Backend API:
 
-```text
-http://localhost:8080/api
+```
+http://localhost:3001
 ```
 
-Сбросить базу и заново применить `schema.sql` + `seed.sql`:
+---
 
-```bash
-docker compose down -v
-docker compose up --build
+# Docker
+
+Проект состоит из трех сервисов:
+
+## PostgreSQL
+
+Образ:
+
+```yaml
+postgres:16-alpine
 ```
 
-## Локальный frontend без Docker
+Данные сохраняются в том:
+
+```yaml
+pg_data
+```
+
+При первом запуске автоматически выполняются:
+
+* schema.sql;
+* seed.sql.
+
+## Backend
+
+Образ собирается из файла:
+
+```
+msch-backend/Dockerfile
+```
+
+Точка входа:
 
 ```bash
-cd msch
+node src/index.js
+```
+
+Backend доступен на порту:
+
+```
+3001
+```
+
+## Frontend
+
+Frontend публикуется на порту:
+
+```
+8080
+```
+
+---
+
+# Конфигурация базы данных
+
+Подключение к PostgreSQL осуществляется через файл:
+
+```
+src/db/pool.js
+```
+
+Используются переменные окружения:
+
+```javascript
+host: process.env.DB_HOST || 'db',
+port: parseInt(process.env.DB_PORT || '5432'),
+database: process.env.DB_NAME || 'msch',
+user: process.env.DB_USER || 'msch',
+password: process.env.DB_PASSWORD || 'msch'
+```
+
+---
+
+# Режим разработки
+
+Установить зависимости:
+
+```bash
 npm install
+```
+
+Запуск сервера:
+
+```bash
 npm run dev
 ```
 
-Открой `http://localhost:5173`. Frontend проксирует `/api` на `http://localhost:3001`.
+Используется nodemon:
 
-## Локальный backend без Docker
-
-Нужен PostgreSQL и переменные из `.env` (для локального запуска укажи `DB_HOST=localhost`).
-
-```bash
-cd msch-backend
-npm install
-npm start
+```json
+"dev": "nodemon src/index.js"
 ```
 
-Проверка: `http://localhost:3001/api/health`
+---
 
-## Админ-панель
+# Инициализация базы данных
 
-После входа под учётной записью с ролью `admin` открой `/admin`.
+При первом запуске контейнера PostgreSQL автоматически выполняются:
 
-Разделы:
-- **Обзор** — сводка по пользователям, врачам и записям
-- **Пользователи** — поиск, смена роли, удаление
-- **Врачи** — список специалистов
-- **Записи** — завершение и отмена приёмов
+* `schema.sql`;
+* `seed.sql`.
 
-Email и ФИО пациентов в интерфейсе отображаются частично скрытыми.
+Дополнительно при старте приложения создаются и обновляются служебные таблицы:
 
-## Демо-данные
+* `gallery_photos`;
+* `patient_medical_histories`;
+* `app_settings`.
 
-Файл `seed.sql` создаёт тестовых пользователей с доменом `@demo.local`. Используй только в локальной среде. Учётные данные не публикуются в документации — при необходимости сгенерируй свой bcrypt-хеш или зарегистрируй пользователя через форму.
+Настраиваются триггеры и индексы для таблицы `appointments`.
 
-## Частые проблемы
+---
 
-Если `docker compose build` пишет, что Docker API недоступен — Docker Desktop не запущен.
+# Остановка проекта
 
-Если порт 8080 занят — измени маппинг `"8080:80"` в `docker-compose.yml`.
+Остановить контейнеры:
+
+```bash
+docker compose down
+```
+
+Остановить и удалить тома:
+
+```bash
+docker compose down -v
+```
+
+---
+
+# Автор
+
+Проект разработан в рамках выпускной квалификационной работы по теме:
+
+**«Разработка информационной системы для Медико-санитарной части аэропорта Иркутск»**.
